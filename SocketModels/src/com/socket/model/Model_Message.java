@@ -8,13 +8,15 @@ public class Model_Message implements Serializable {
     
     private boolean action;
     private String message;
+    private Object data;
 
     public Model_Message() {
     }
 
-    public Model_Message(boolean action, String message) {
+    public Model_Message(boolean action, String message, Object data) {
         this.action = action;
         this.message = message;
+        this.data = data;
     }
 
     public boolean isAction() {
@@ -33,4 +35,18 @@ public class Model_Message implements Serializable {
         this.message = message;
     }
 
+    public Object getData() {
+        return data;
+    }
+
+    public void setData(Object data) {
+        this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "Model_Message{" + "action=" + action + ", message=" + message + ", data=" + data + '}' + "\n";
+    }
+    
+    
 }

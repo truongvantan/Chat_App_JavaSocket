@@ -2,16 +2,25 @@ package com.pbl4.form;
 
 import com.pbl4.event.EventMessage;
 import com.pbl4.event.PublicEvent;
+import com.pbl4.service.Service;
 import com.socket.model.Model_Message;
 import com.socket.model.Model_Register;
 import java.awt.Color;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class P_Register extends javax.swing.JPanel {
-    
+
     public P_Register() {
         initComponents();
     }
-    
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -130,19 +139,50 @@ public class P_Register extends javax.swing.JPanel {
         } else if (!password.equals(confirmPassword)) {
             txtRePassword.grabFocus();
         } else {
-            Model_Register data = new Model_Register(userName, password);
-            PublicEvent.getInstance().getEventLogin().register(data, new EventMessage() {
-                @Override
-                public void callMessage(Model_Message message) {
-                    // Nếu tài khoản đã tồn tại thì hiển thị thông báo
-                    lbError.setText(message.getMessage());
-                    if (!message.isAction()) {
-                        lbError.setForeground(Color.RED);
+            try {
+                // gửi yêu cầu đăng kí lên server
+                ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteStream);
+                objectOutputStream.writeObject("startregister");
+                objectOutputStream.flush();
+                System.out.println("Client at " + Service.getInstance().getClient().getRemoteSocketAddress() 
+                        + " send request: " + "startregister");
+
+                byte[] serializedData = byteStream.toByteArray();
+                OutputStream outputStream = Service.getInstance().getClient().getOutputStream();
+                outputStream.write(serializedData);
+                outputStream.flush();
+
+                // nhận phản hồi startregister từ server
+                InputStream inputStream = Service.getInstance().getClient().getInputStream();
+                ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+                Object obj = objectInputStream.readObject();
+                if (obj instanceof String) {
+                    String respose = (String) obj;
+                    if ("okregister".equalsIgnoreCase(respose)) {
+                        Model_Register data = new Model_Register(userName, password);
+                        PublicEvent.getInstance().getEventLogin().register(data, new EventMessage() {
+                            @Override
+                            public void callMessage(Model_Message message) {
+                                // Nếu tài khoản đã tồn tại thì hiển thị thông báo
+                                lbError.setText(message.getMessage());
+                                if (!message.isAction()) {
+                                    lbError.setForeground(Color.RED);
+                                } else {
+                                    lbError.setForeground(Color.GREEN);
+                                    PublicEvent.getInstance().getEventLogin().login();
+                                }
+                            }
+                        });
                     } else {
-                        lbError.setForeground(Color.GREEN);
+                        System.err.println("Không thể nhận phản hồi register từ server");
                     }
                 }
-            });
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException ex) {
+                ex.printStackTrace();
+            }
         }
     }//GEN-LAST:event_cmdRegisterActionPerformed
 

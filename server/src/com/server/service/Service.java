@@ -23,13 +23,17 @@ public class Service {
         try {
             server = new ServerSocket(PORT_NUMBER);
             textArea.append("Server is running on port: " + PORT_NUMBER + "\n");
+            ServerThread serverThread;
             while (true) {
                 Socket socket = server.accept();
-                new ServerProcess(socket, textArea).start();
-                textArea.append("Client " + socket.getRemoteSocketAddress().toString() + " connected\n");
+                serverThread = new ServerThread(socket, textArea);
+                serverThread.start();
+                
+                textArea.append("Client at " + socket.getRemoteSocketAddress().toString() + " connected\n");
             }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
+    
 }

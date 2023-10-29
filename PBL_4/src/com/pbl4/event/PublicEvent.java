@@ -7,6 +7,7 @@ public class PublicEvent { // Singleton
     private EventImageView eventImageView;
     private EventChat eventChat;
     private EventLogin eventLogin;
+    private EventMenuLeft eventMenuLeft;
 
     public static PublicEvent getInstance() {
         if (instance == null) {
@@ -18,7 +19,7 @@ public class PublicEvent { // Singleton
     private PublicEvent() {
 
     }
-    
+
     public void addEventMain(EventMain event) {
         this.eventMain = event;
     }
@@ -35,9 +36,14 @@ public class PublicEvent { // Singleton
         this.eventLogin = event;
     }
 
+    public void addEventMenuLeft(EventMenuLeft eventMenuLeft) {
+        this.eventMenuLeft = eventMenuLeft;
+    }
+
     public EventMain getEventMain() {
         return this.eventMain;
     }
+
     public EventImageView getEventImageView() {
         return this.eventImageView;
     }
@@ -48,5 +54,9 @@ public class PublicEvent { // Singleton
 
     public EventLogin getEventLogin() {
         return this.eventLogin;
+    }
+    
+    public EventMenuLeft getEventMenuLeft() {
+        return this.eventMenuLeft;
     }
 }

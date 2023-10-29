@@ -38,4 +38,9 @@ public class Model_Register implements Serializable {
         this.password = password;
     }
 
+    @Override
+    public String toString() {
+        return "Model_Register{" + "userName=" + userName + ", password=" + password + '}' + "\n";
+    }
+
 }

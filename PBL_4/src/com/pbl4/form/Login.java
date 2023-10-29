@@ -22,7 +22,7 @@ public class Login extends javax.swing.JPanel {
                     public void run() {
                         PublicEvent.getInstance().getEventMain().showLoading(true);
                         try {
-                            Thread.sleep(3000);
+                            Thread.sleep(2000);
                         } catch (InterruptedException e) {
                         }
                         PublicEvent.getInstance().getEventMain().showLoading(false);
@@ -35,16 +35,6 @@ public class Login extends javax.swing.JPanel {
 
             @Override
             public void register(Model_Register data, EventMessage message) {
-//                Service.getInstance().getClient().emit("register", data.toJSONObject(), new Ack(){
-//                    @Override
-//                    public void call(Object... os) {
-//                        if (os.length > 0) {
-//                            Model_Message ms = new Model_Message((boolean)os[0], os[1].toString());
-//                            message.callMessage(ms);
-//                        }
-//                    }
-//                    
-//                });
                 Service.getInstance().clientProcess(data, message);
             }
 

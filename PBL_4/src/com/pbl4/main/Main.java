@@ -47,6 +47,8 @@ public class Main extends javax.swing.JFrame{
             @Override
             public void initChat() {
                 home.setVisible(true);
+                // taoj thread lấy list user từ server
+//                Service.getInstance().getClient()
             }
         });
         PublicEvent.getInstance().addEventImageView(new EventImageView() {

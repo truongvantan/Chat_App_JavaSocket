@@ -1,10 +1,17 @@
 package com.pbl4.form;
 
 import com.pbl4.component.Item_People;
+import com.pbl4.event.EventMenuLeft;
+import com.pbl4.event.PublicEvent;
 import com.pbl4.swing.ScrollBar;
+import com.socket.model.Model_User_Account;
+import java.util.ArrayList;
+import java.util.List;
 import net.miginfocom.swing.MigLayout;
 
 public class Menu_Left extends javax.swing.JPanel {
+
+    private List<Model_User_Account> userAccount;
 
     public Menu_Left() {
         initComponents();
@@ -14,13 +21,27 @@ public class Menu_Left extends javax.swing.JPanel {
     private void init() {
         sp.setVerticalScrollBar(new ScrollBar());
         menuList.setLayout(new MigLayout("fillx", "0[]0", "0[]0"));
+        userAccount = new ArrayList<Model_User_Account>();
+
+        PublicEvent.getInstance().addEventMenuLeft(new EventMenuLeft() {
+            @Override
+            public void newUser(List<Model_User_Account> users) {
+                for (Model_User_Account user : users) {
+                    userAccount.add(user);
+                    menuList.add(new Item_People(user.getUserName()), "wrap");
+                    refreshMenuList();
+                }
+            }
+
+        });
+
         showMessage();
     }
 
     private void showMessage() {
         menuList.removeAll();
-        for (int i = 0; i < 20; i++) {
-            menuList.add(new Item_People("People " + i), "wrap");
+        for (Model_User_Account user : userAccount) {
+            menuList.add(new Item_People(user.getUserName()), "wrap");
         }
         refreshMenuList();
     }
@@ -40,10 +61,12 @@ public class Menu_Left extends javax.swing.JPanel {
         }
         refreshMenuList();
     }
+
     private void refreshMenuList() {
         menuList.repaint();
         menuList.revalidate();
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
