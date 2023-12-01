@@ -18,6 +18,7 @@ import javax.swing.JPasswordField;
 public class LoginFrameClient extends javax.swing.JFrame {
 
     private final String HOST = "localhost";
+//    private final String HOST = "192.168.1.7";
     private final int PORT_NUMBER = 9999;
 
     private Socket socket;
@@ -42,7 +43,7 @@ public class LoginFrameClient extends javax.swing.JFrame {
     private void init() {
         this.setTitle("Login Form");
         this.setLocationRelativeTo(null);
-
+        this.setResizable(false);
         this.setIconImage(new ImageIcon(getClass().getResource("/com/client/icon/icon.png")).getImage());
         ComponentResizer com = new ComponentResizer();
         com.registerComponent(this);

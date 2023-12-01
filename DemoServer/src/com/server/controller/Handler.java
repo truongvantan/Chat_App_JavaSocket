@@ -5,11 +5,10 @@ import com.server.model.bean.User;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.SourceDataLine;
 
 public class Handler implements Runnable {
 
@@ -19,6 +18,7 @@ public class Handler implements Runnable {
     private DataOutputStream dos;
     private User user;
     private boolean isLoggedIn;
+    private DatagramSocket socketUDP;
 
     public Handler() {
 
@@ -32,6 +32,10 @@ public class Handler implements Runnable {
             this.dos = new DataOutputStream(socket.getOutputStream());
             this.isLoggedIn = isLoggedIn;
             this.lock = lock;
+//            this.socketUDP = socketUDP;
+//            if (this.socketUDP == null) {
+//                this.socketUDP = new DatagramSocket(5555);
+//            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -42,6 +46,12 @@ public class Handler implements Runnable {
         this.user = user;
         this.isLoggedIn = isLoggedIn;
         this.lock = lock;
+//        try {
+//            if (this.socketUDP == null) {
+//                this.socketUDP = new DatagramSocket(5555);
+//            }
+//        } catch (Exception e) {
+//        }
     }
 
     public void setSocket(Socket socket) {
@@ -69,6 +79,10 @@ public class Handler implements Runnable {
 
     public boolean isIsLoggedIn() {
         return isLoggedIn;
+    }
+
+    public Socket getSocket() {
+        return socket;
     }
 
     /**
@@ -177,31 +191,86 @@ public class Handler implements Runnable {
                 else if ("Voice chat".equalsIgnoreCase(message)) {
                     // Đọc các header của tin nhắn gửi voice
                     String receiver = dis.readUTF();
-
-                    AudioFormat af = new AudioFormat(8000.0f, 8, 1, true, false);
-                    DataLine.Info info = new DataLine.Info(SourceDataLine.class, af);
-                    SourceDataLine inSpeaker = (SourceDataLine) AudioSystem.getLine(info);
+                    System.out.println(message + "," + receiver);
                     int bytesRead = 0;
-                    byte[] inSound = new byte[1];
-                    
+                    byte[] buffer = new byte[1024];
+
+                    for (Handler client : Server.clients) {
+                        if (client.getUser().getUsername().equals(receiver)) {
+                            client.getDos().writeUTF("Voice chat");
+                            client.getDos().writeUTF(this.user.getUsername());
+                            InetAddress sendTo = client.getSocket().getInetAddress();
+                            int port = 5555;
+                            System.out.println(client.getUser().getUsername() + " send voice.");
+                            while (bytesRead != -1) {
+                                try {
+                                    // nhận buffer voice từ người gửi
+                                    DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+                                    socketUDP.receive(response);
+                                    // gửi lại buffer vừa đọc cho người nhận
+                                    DatagramPacket request = new DatagramPacket(response.getData(), response.getLength(), sendTo, port);
+                                    socketUDP.send(request);
+
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            client.getDos().flush();
+                            break;
+
+                        }
+                    }
+                } else if ("Video call".equalsIgnoreCase(message)) {
+                    // Đọc các header của tin nhắn gửi video
+                    String receiver = dis.readUTF();
+                    System.out.println(message + "," + receiver);
+
+                    // nhận hình ảnh webcam từ client
+                    for (Handler client : Server.clients) {
+                        if (client.getUser().getUsername().equals(receiver)) {
+
+                            client.getDos().writeUTF("Video call");
+                            client.getDos().writeUTF(this.user.getUsername());
+                            System.out.println(client.getUser().getUsername() + " send video.");
+
+//                            while (true) {
+                            try {
+                                int frameWidth = 640;
+                                int frameHeight = 480;
+
+                                int[] pixelData = new int[frameWidth * frameHeight];
+                                for (int i = 0; i < pixelData.length; i++) {
+
+                                    pixelData[i] = dis.readInt();
+//                                    pixelData[i] = Integer.parseInt(dis.readUTF());
+                                    System.out.println(this.user.getUsername() + "send: " + pixelData[i]);
+                                    client.getDos().writeInt(pixelData[i]);
+//                                    client.getDos().writeUTF(String.valueOf(pixelData[i]));
+                                }
+                                client.getDos().flush();
+
+                                break;
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+//                            }
+
+                        }
+                    }
+                } else if ("Stop".equalsIgnoreCase(message)) {
+                    // Đọc các header của tin nhắn dừng voice chat/video call
+                    String receiver = dis.readUTF();
+                    System.out.println(message + "," + receiver);
                     for (Handler client : Server.clients) {
                         if (client.getUser().getUsername().equals(receiver)) {
                             synchronized (lock) {
-                                client.getDos().writeUTF("Voice chat");
+                                client.getDos().writeUTF("Stop");
                                 client.getDos().writeUTF(this.user.getUsername());
-                                while (bytesRead != -1) {
-                                    try {
-                                        // nhận buffer voice từ người gửi
-                                        bytesRead = dis.read(inSound, 0, inSound.length);
-                                        // gửi lại buffer vừa đọc cho người nhận
-                                        client.getDos().write(inSound, 0, bytesRead);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
+                                System.out.println(client.getUser().getUsername() + " Stop.");
                                 client.getDos().flush();
                                 break;
                             }
+
                         }
                     }
                 }

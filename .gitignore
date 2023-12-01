@@ -4,3 +4,7 @@
 /DemoClient/dist/
 /DemoClient/build/
 /DemoServer/dist/
+/Java-UDP-Video-Stream-Server-master/build/
+/Java-UDP-Video-Stream-Server-master/nbproject/private/
+/TestServer/build/
+/TCPServer/nbproject/private/

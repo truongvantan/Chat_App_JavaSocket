@@ -1,7 +1,6 @@
 package com.client.customswing;
 
 import java.awt.Color;
-import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.Icon;

@@ -5,6 +5,7 @@ import com.server.model.dao.DAO;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ public class Server {
     private ServerSocket s;
     private Socket socket;
     private final int PORT_NUMBER = 9999;
+    private DatagramSocket socketUDP;
 
     static ArrayList<Handler> clients = new ArrayList<Handler>();
 
@@ -29,6 +31,7 @@ public class Server {
 
             // Mở kết nối socket server tại PORT 9999;
             s = new ServerSocket(PORT_NUMBER);
+//            socketUDP = new DatagramSocket(5555);
             System.out.println("Server is running at PORT: " + PORT_NUMBER);
 
             while (true) {
@@ -54,7 +57,9 @@ public class Server {
                     // Kiểm tra tên đăng nhập đã tồn tại hay chưa
                     if (!isExistedUser(username)) {
                         // Tạo một Handler để giải quyết các yêu từ user này
+//                        Handler newHandler = new Handler(socket, user, true, lock, socketUDP);
                         Handler newHandler = new Handler(socket, user, true, lock);
+
                         clients.add(newHandler);
 
                         // Thêm tài khoản vừa tạo vào CSDL, gửi thông báo về phía client

@@ -21,7 +21,7 @@ public class DBConfig {
         
         try {
             conn = (Connection) java.sql.DriverManager.getConnection("jdbc:mysql://" + server + ":" + port + "/" + dbName, userName, password);
-            System.out.println("Kết nối DB thành công.");
+            System.out.println("Connect DB Successfully.");
         } catch (SQLException e) {
             displayError(e);
             e.printStackTrace();

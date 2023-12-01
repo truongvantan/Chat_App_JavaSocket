@@ -5,12 +5,18 @@ import com.client.customswing.ChatRight;
 import com.client.customswing.ComponentResizer;
 import com.client.customswing.JIMSendTextPane;
 import com.client.customswing.ScrollBar;
+import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.WebcamResolution;
 import java.awt.Adjustable;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Desktop;
 import java.awt.Dimension;
-import java.awt.EventQueue;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.HeadlessException;
+import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -20,22 +26,34 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.HashMap;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
+import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -45,6 +63,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import net.miginfocom.swing.MigLayout;
 
@@ -57,10 +76,23 @@ public class ChatFrameClient extends javax.swing.JFrame {
     private ChatLeft chatLeftItem;
     private ChatRight chatRightItem;
 
-    private HashMap<String, ChatLeft> chatLeftWindows = new HashMap<String, ChatLeft>();
-    private HashMap<String, ChatRight> chatRightWindows = new HashMap<String, ChatRight>();
+    private HashMap<String, JPanel> chatWindows = new HashMap<String, JPanel>();
 
     Thread receiver;
+    Thread sendVoice;
+    Thread sendVideo;
+    Thread sendStop;
+
+    JFrame jframe;
+    JButton btnStop;
+
+    AudioFormat af1, af2;
+    DataLine.Info info1, info2;
+    TargetDataLine microphone;
+    SourceDataLine inSpeaker;
+
+    Webcam wCam;
+    DatagramSocket socketUDP;
 
     public ChatFrameClient(String username, DataInputStream dis, DataOutputStream dos) {
         initComponents();
@@ -74,6 +106,13 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
         receiver = new Thread(new Receiver(dis));
         receiver.start();
+
+        sendVoice = new Thread(new SendVoice(dos));
+        sendVideo = new Thread(new SendVideo(dos));
+        sendStop = new Thread(new SendStop(dos));
+
+        jframe = new JFrame();
+        btnStop = new JButton("Stop");
     }
 
     public void setUsername(String username) {
@@ -83,7 +122,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
     private void init() {
         this.setTitle("CHAT APP");
         this.setLocationRelativeTo(null);
-
+        this.setResizable(false);
         this.setIconImage(new ImageIcon(getClass().getResource("/com/client/icon/icon.png")).getImage());
         ComponentResizer com = new ComponentResizer();
         com.registerComponent(this);
@@ -139,6 +178,10 @@ public class ChatFrameClient extends javax.swing.JFrame {
         panel.add(btnSend);
 
         panelBottom.add(panel);
+
+        // Thay đổi cửa sổ chat
+        chatWindows.put(" ", new JPanel());
+        body = chatWindows.get(" ");
 
         // Xử lí sự kiện cho các button
         txtMessage.addKeyListener(new KeyAdapter() {
@@ -212,7 +255,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
                         bis.close();
                         // In ra màn hình file
-                        addItemRightFile("", username, fileChooser.getSelectedFile().getName(), getFileSizeMB(file));
+                        addItemRightFile("", username, fileChooser.getSelectedFile().getName(), selectedFile, getFileSizeMB(file));
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
@@ -226,8 +269,8 @@ public class ChatFrameClient extends javax.swing.JFrame {
             public void actionPerformed(ActionEvent e) {
                 // Hiển thị hộp thoại cho người dùng xác nhận
                 int result = JOptionPane.showConfirmDialog(body,
-                        "Bạn muốn thực voice chat với " + lbReceiver.getText(),
-                        "Xác nhận",
+                        "Do you want to call " + lbReceiver.getText() + "?",
+                        "Confirm voice call",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE);
                 if (result == JOptionPane.YES_OPTION) {
@@ -235,57 +278,51 @@ public class ChatFrameClient extends javax.swing.JFrame {
                         // Gửi yêu cầu video call đến server
                         dos.writeUTF("Voice chat");
                         dos.writeUTF(lbReceiver.getText());
-                        EventQueue.invokeLater(new Runnable() {
-                            public void run() {
-                                try {
-                                    JFrame voiceFrame = new JFrame("Voice chat with " + lbReceiver.getText());
-                                    voiceFrame.setSize(400, 400);
-                                    voiceFrame.setLocationRelativeTo(null);
-                                    voiceFrame.setVisible(true);
-
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        });
-
-                        Thread.sleep(2000);
-                        AudioFormat af = new AudioFormat(8000.0f, 8, 1, true, false);
-                        DataLine.Info info = new DataLine.Info(TargetDataLine.class, af);
-                        TargetDataLine microphone = (TargetDataLine) AudioSystem.getLine(info);
-                        microphone.open(af);
-                        microphone.start();
-
-                        int bytesRead = 0;
-                        byte[] soundData = new byte[1];
-                        while (bytesRead != -1) {
-                            bytesRead = microphone.read(soundData, 0, soundData.length);
-                            if (bytesRead >= 0) {
-                                dos.write(soundData, 0, bytesRead);
-                            }
-                        }
+                        dos.flush();
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
                 }
-                // gửi yêu cầu video call lên server + người nhận
+            }
+        });
+
+        btnVideo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Hiển thị hộp thoại cho người dùng xác nhận
+                int result = JOptionPane.showConfirmDialog(body,
+                        "Do you want to make a video call to " + lbReceiver.getText() + "?",
+                        "Confirm Video call",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE);
+                if (result == JOptionPane.YES_OPTION) {
+                    try {
+                        // Gửi yêu cầu video call đến server
+                        dos.writeUTF("Video call");
+                        dos.writeUTF(lbReceiver.getText());
+                        dos.flush();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
             }
         });
 
         btnVoice.setEnabled(false);
         btnVideo.setEnabled(false);
 
+        // Thay đổi cửa sổ chat khi combobox user online thay đổi
         onlineUsers.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 if (e.getStateChange() == ItemEvent.SELECTED) {
                     lbReceiver.setText((String) onlineUsers.getSelectedItem());
-                    System.out.println("cbb item value: " + String.valueOf(onlineUsers.getSelectedItem()).length());
-                    if (chatLeftItem != chatLeftWindows.get(lbReceiver.getText())) {
+                    if (body != chatWindows.get(lbReceiver.getText())) {
                         txtMessage.setText("");
-                        chatLeftItem = chatLeftWindows.get(lbReceiver.getText());
+                        body = chatWindows.get(lbReceiver.getText());
 //                        body.removeAll();
                         body.repaint();
                         body.revalidate();
+                        sp.setViewportView(body);
 
                     }
 
@@ -310,9 +347,6 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
             }
         });
-
-        chatLeftWindows.put(" ", new ChatLeft());
-        chatLeftItem = chatLeftWindows.get(" ");
 
         this.getRootPane().setDefaultButton(btnSend);
 
@@ -351,11 +385,6 @@ public class ChatFrameClient extends javax.swing.JFrame {
         body.setLayout(new MigLayout("fillx", "", "5[]5"));
         sp.setVerticalScrollBar(new ScrollBar());
         sp.getVerticalScrollBar().setBackground(Color.WHITE);
-
-//        addItemLeft("I have a JTextArea in Java. When I place a large amount of text in it, the text area provides horizontal scrolling.", "Ronaldo", new ImageIcon(getClass().getResource("/com/client/icon/testing/dog.jpg")), new ImageIcon(getClass().getResource("/com/client/icon/testing/pic.jpg")));
-//        addItemRight("I have a JTextArea in Java. When I place a large amount of text in it\nthe text area provides horizontal scrolling.\nWhen I place a large amount of text in it");
-//        addItemRight("I have a JTextArea in Java. When I place a large amount of text in it\nthe text area provides horizontal scrolling.\nWhen I place a large amount of text in it");
-//        addItemRight("I have a JTextArea in Java. When I place a large amount of text in it\nthe text area provides horizontal scrolling.\nWhen I place a large amount of text in it");
     }
 
     // hiển thị tin nhắn từ client đang nhắn tin.
@@ -370,11 +399,36 @@ public class ChatFrameClient extends javax.swing.JFrame {
         body.revalidate();
     }
 
-    public void addItemLeftFile(String text, String user, String fileName, String fileSize) {
+    public void addItemLeftFile(String text, String user, String fileName, byte[] file, String fileSize) {
         chatLeftItem = new ChatLeft();
+        chatLeftItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
         chatLeftItem.setText(text);
         chatLeftItem.setFile(fileName, fileSize);
         chatLeftItem.setTime();
+        chatLeftItem.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                HyperlinkListener hyperlinkListener = new HyperlinkListener(fileName, file);
+                hyperlinkListener.execute();
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+            }
+
+        });
 
         body.add(chatLeftItem, "wrap, w 100::80%");
         body.repaint();
@@ -395,11 +449,37 @@ public class ChatFrameClient extends javax.swing.JFrame {
         scrollToBottom();
     }
 
-    public void addItemRightFile(String text, String user, String fileName, String fileSize) {
+    public void addItemRightFile(String text, String user, String fileName, byte[] file, String fileSize) {
         chatRightItem = new ChatRight();
+        chatRightItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
         chatRightItem.setText(text);
         chatRightItem.setFile(fileName, fileSize);
         chatRightItem.setTime();
+        
+        chatRightItem.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                HyperlinkListener hyperlinkListener = new HyperlinkListener(fileName, file);
+                hyperlinkListener.execute();
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+            }
+
+        });
 
         body.add(chatRightItem, "wrap, al right, w 100::80%");
         body.repaint();
@@ -642,6 +722,13 @@ public class ChatFrameClient extends javax.swing.JFrame {
             this.dis = dis;
         }
 
+        public String getFileSizeMB(File file) {
+            double fileSize = (double) file.length() / (1024 * 1024);
+            DecimalFormat decimalFormat = new DecimalFormat("#.##");
+            String formattedFileSize = decimalFormat.format(fileSize);
+            return formattedFileSize + "Mb";
+        }
+
         @Override
         public void run() {
             try {
@@ -680,8 +767,10 @@ public class ChatFrameClient extends javax.swing.JFrame {
                             file.write(buffer, 0, Math.min(bufferSize, size));
                             size -= bufferSize;
                         }
+
                         // In ra màn hình file vừa nhận
-                        addItemLeftFile(sender, sender, filename, String.valueOf(file.size()));
+                        addItemLeftFile(sender, sender, filename, file.toByteArray(), String.valueOf(file.size()));
+
                     } // Nhận yêu cầu cập nhật danh sách người dùng trực tuyến
                     else if ("Online users".equalsIgnoreCase(method)) {
                         String[] users = dis.readUTF().split(",");
@@ -693,9 +782,13 @@ public class ChatFrameClient extends javax.swing.JFrame {
                             // Cập nhật danh sách các người dùng trực tuyến vào ComboBox, trừ bản thân người gửi
                             if (!user.equals(username)) {
                                 onlineUsers.addItem(user);
-                                if (chatLeftWindows.get(user) == null) {
-                                    ChatLeft temp = new ChatLeft();
-                                    chatLeftWindows.put(user, temp);
+                                if (chatWindows.get(user) == null) {
+                                    JPanel temp = new JPanel();
+                                    temp.setLayout(new MigLayout("fillx", "", "5[]5"));
+                                    sp.setVerticalScrollBar(new ScrollBar());
+                                    sp.getVerticalScrollBar().setBackground(Color.WHITE);
+                                    chatWindows.put(user, temp);
+
                                 }
                             }
                             if (chatting.equals(user)) {
@@ -721,48 +814,172 @@ public class ChatFrameClient extends javax.swing.JFrame {
                         System.out.println("Server responded: " + sender + " is waiting voice calling ");
 
                         int result = JOptionPane.showConfirmDialog(body,
-                                sender + " muốn thực hiện voice chat với bạn?",
-                                "Xác nhận",
+                                sender + " wants to do voice chat with you?",
+                                "Confirm",
                                 JOptionPane.YES_NO_OPTION,
                                 JOptionPane.QUESTION_MESSAGE);
                         if (result == JOptionPane.YES_OPTION) {
-                            AudioFormat af = new AudioFormat(8000.0f, 8, 1, true, false);
-                            DataLine.Info info = new DataLine.Info(SourceDataLine.class, af);
-                            SourceDataLine inSpeaker = (SourceDataLine) AudioSystem.getLine(info);
-                            inSpeaker.open(af);
+                            sendVoice.start();
+                            af1 = new AudioFormat(8000.0f, 8, 1, true, false);
+                            info1 = new DataLine.Info(SourceDataLine.class, af1);
+                            inSpeaker = (SourceDataLine) AudioSystem.getLine(info1);
+                            inSpeaker.open(af1);
 
                             int bytesRead = 0;
                             byte[] inSound = new byte[1];
                             inSpeaker.start();
-
-                            // Hiển thị frame voice
-                            EventQueue.invokeLater(new Runnable() {
-                                public void run() {
+                            jframe.setTitle("Voice call with " + lbReceiver.getText());
+                            jframe.setSize(400, 400);
+                            jframe.setLocationRelativeTo(null);
+                            btnStop.addActionListener(new ActionListener() {
+                                @Override
+                                public void actionPerformed(ActionEvent e) {
                                     try {
-                                        JFrame voiceFrame = new JFrame("Voice chat with " + lbReceiver.getText());
-                                        voiceFrame.setSize(400, 400);
-                                        voiceFrame.setLocationRelativeTo(null);
-                                        voiceFrame.setVisible(true);
+                                        sendStop.start();
+                                        if (microphone != null) {
+                                            microphone.stop();
+                                            microphone.close();
+                                        }
+                                        if (inSpeaker != null) {
+                                            inSpeaker.stop();
+                                            inSpeaker.close();
+                                        }
+                                        if (jframe.isVisible()) {
+                                            jframe.dispose();
+                                        }
+                                        if (sendVideo.isAlive()) {
+                                            sendVideo.interrupt();
+                                        }
+                                        if (sendVoice.isAlive()) {
+                                            sendVoice.interrupt();
+                                        }
+                                    } catch (Exception ex) {
+                                        ex.printStackTrace();
+                                    }
+                                }
+                            });
+                            jframe.add(btnStop);
+                            jframe.setVisible(true);
+                            byte[] buffer = new byte[1024];
+                            while (bytesRead != -1) {
+                                try {
+                                    DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+                                    socketUDP.receive(response);
+                                    inSpeaker.write(response.getData(), 0, response.getLength());
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+//                                if (bytesRead >= 0) {
+//                                    inSpeaker.write(inSound, 0, bytesRead);
+//                                }
+                            }
+                        } else {
+//                            sendVoice.interrupt();
+                        }
 
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
+                    } // Thông báo video call
+                    else if ("Video call".equalsIgnoreCase(method)) {
+                        // nhận tên người gửi
+                        String sender = dis.readUTF();
+                        System.out.println("Server responded: " + sender + " is waiting video call.");
+
+                        int result = JOptionPane.showConfirmDialog(body,
+                                sender + " wants to do video call with you?",
+                                "Confirm",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.QUESTION_MESSAGE);
+                        if (result == JOptionPane.YES_OPTION) {
+
+                            sendVideo.start();
+                            // Hiển thị hình ảnh
+                            jframe.setTitle("Video call with " + lbReceiver.getText());
+                            jframe.setSize(640, 480);
+                            jframe.setLocationRelativeTo(null);
+                            jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                            jframe.setLayout(new BorderLayout());
+                            ImageDisplayPanel imageDisplayPanel = new ImageDisplayPanel();
+                            jframe.add(imageDisplayPanel, BorderLayout.CENTER);
+
+                            btnStop.addActionListener(new ActionListener() {
+                                @Override
+                                public void actionPerformed(ActionEvent e) {
+                                    try {
+                                        sendStop.start();
+                                        if (wCam != null) {
+                                            wCam.close();
+                                            System.err.println("Web cam is closed.");
+                                        }
+                                        if (jframe.isVisible()) {
+                                            jframe.dispose();
+                                        }
+                                        if (sendVideo.isAlive()) {
+                                            sendVideo.interrupt();
+                                        }
+                                        if (sendVoice.isAlive()) {
+                                            sendVoice.interrupt();
+                                        }
+                                    } catch (Exception ex) {
+                                        ex.printStackTrace();
                                     }
                                 }
                             });
 
-                            while (bytesRead != -1) {
-                                try {
-                                    bytesRead = dis.read(inSound, 0, inSound.length);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                                if (bytesRead >= 0) {
-                                    inSpeaker.write(inSound, 0, bytesRead);
-                                }
-                            }
-                        }
+                            jframe.add(btnStop, BorderLayout.SOUTH);
+                            jframe.setVisible(true);
 
-                    }// Thông báo có thể thoát
+//                            try {
+//                                int frameWidth = dis.readInt();
+//                                int frameHeight = dis.readInt();
+//                                int[] pixelData = new int[frameWidth * frameHeight];
+//                                for (int i = 0; i < pixelData.length; i++) {
+//                                    pixelData[i] = dis.readInt();
+//                                }
+//                                BufferedImage frame = new BufferedImage(frameWidth, frameHeight, BufferedImage.TYPE_INT_RGB);
+//                                frame.setRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
+//
+//                                imageDisplayPanel.setBackground(frame);
+//                            } catch (Exception e) {
+//                                e.printStackTrace();
+//                            }
+//                            while (true) {
+                            int frameWidth = 640;
+                            int frameHeight = 480;
+                            int[] pixelData = new int[frameWidth * frameHeight];
+                            for (int i = 0; i < pixelData.length; i++) {
+                                pixelData[i] = dis.readInt();
+//                                pixelData[i] = Integer.parseInt(dis.readUTF());
+                                System.out.println("pixel " + i + " receive: " + pixelData[i]);
+                            }
+                            BufferedImage frame = new BufferedImage(frameWidth, frameHeight, BufferedImage.TYPE_INT_RGB);
+                            frame.setRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
+
+                            imageDisplayPanel.setBackground(frame);
+//                            }
+                        } else {
+//                            sendVideo.interrupt();
+                        }
+                    } // Thông báo stop voice chat/videocall
+                    else if ("Stop".equalsIgnoreCase(method)) {
+                        String sender = dis.readUTF();
+                        System.out.println("Server responded: " + sender + " stop call.");
+                        if (microphone != null) {
+                            microphone.stop();
+                            microphone.close();
+                        }
+                        if (inSpeaker != null) {
+                            inSpeaker.stop();
+                            inSpeaker.close();
+                        }
+                        if (jframe.isVisible()) {
+                            jframe.dispose();
+                        }
+                        if (sendVideo.isAlive()) {
+                            sendVideo.interrupt();
+                        }
+                        if (sendVoice.isAlive()) {
+                            sendVoice.interrupt();
+                        }
+                    } // Thông báo có thể thoát
                     else if ("Safe to leave".equalsIgnoreCase(method)) {
                         break;
                     }
@@ -777,6 +994,253 @@ public class ChatFrameClient extends javax.swing.JFrame {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+
+        public int[] convert(byte[] input) {
+            int[] ret = new int[input.length];
+            for (int i = 0; i < input.length; i++) {
+                ret[i] = input[i] & 0xff; // Range 0 to 255, not -128 to 127
+            }
+            return ret;
+        }
+
+    }
+
+    class HyperlinkListener extends AbstractAction {
+
+        String filename;
+        byte[] file;
+
+        public HyperlinkListener(String filename, byte[] file) {
+            this.filename = filename;
+            this.file = Arrays.copyOf(file, file.length);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            execute();
+        }
+
+        public void execute() {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setSelectedFile(new File(filename));
+            int rVal = fileChooser.showSaveDialog(body.getParent());
+            if (rVal == JFileChooser.APPROVE_OPTION) {
+
+                // Mở file đã chọn sau đó lưu thông tin xuống file đó
+                File saveFile = fileChooser.getSelectedFile();
+                BufferedOutputStream bos = null;
+                try {
+                    bos = new BufferedOutputStream(new FileOutputStream(saveFile));
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                // Hiển thị JOptionPane cho người dùng có muốn mở file vừa tải về không
+                int nextAction = JOptionPane.showConfirmDialog(null,
+                        "Saved file to " + saveFile.getAbsolutePath() + "\nDo you want to open this file?",
+                        "Successful", JOptionPane.YES_NO_OPTION);
+                if (nextAction == JOptionPane.YES_OPTION) {
+                    try {
+                        Desktop.getDesktop().open(saveFile);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if (bos != null) {
+                    try {
+                        bos.write(this.file);
+                        bos.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+//    class SendVoice implements Runnable {
+//
+//        private DataOutputStream dos;
+//
+//        public SendVoice(DataOutputStream dos) {
+//            this.dos = dos;
+//        }
+//
+//        @Override
+//        public void run() {
+//            try {
+//                // Gửi yêu cầu voice chat đến server
+//                dos.writeUTF("Voice chat");
+//                dos.writeUTF(lbReceiver.getText());
+//
+//                af2 = new AudioFormat(8000.0f, 8, 1, true, false);
+//                info2 = new DataLine.Info(TargetDataLine.class, af2);
+//                microphone = (TargetDataLine) AudioSystem.getLine(info2);
+//                microphone.open(af2);
+//                microphone.start();
+//                int bytesRead = 0;
+//                byte[] soundData = new byte[1];
+//                while (bytesRead != -1) {
+//                    bytesRead = microphone.read(soundData, 0, soundData.length);
+//                    if (bytesRead >= 0) {
+//                        dos.write(soundData, 0, bytesRead);
+//                    }
+//                }
+//                dos.flush();
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
+    class SendVoice implements Runnable {
+
+        private DataOutputStream dos;
+
+        public SendVoice(DataOutputStream dos) {
+            this.dos = dos;
+            try {
+                socketUDP = new DatagramSocket();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        @Override
+        public void run() {
+            try {
+                // Gửi yêu cầu voice chat đến server
+                dos.writeUTF("Voice chat");
+                dos.writeUTF(lbReceiver.getText());
+
+                af2 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, true);
+                info2 = new DataLine.Info(TargetDataLine.class, af2);
+                microphone = (TargetDataLine) AudioSystem.getLine(info2);
+                microphone.open(af2);
+                microphone.start();
+
+                InetAddress address = InetAddress.getByName("localhost");
+                int bytesRead = 0;
+                byte[] buffer = new byte[1024];
+                int CHUNK_SIZE = 1024;
+                while (bytesRead != -1) {
+                    bytesRead = microphone.read(buffer, 0, CHUNK_SIZE);
+                    DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, 5555);
+                    socketUDP.send(request);
+                }
+                dos.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    class SendVideo implements Runnable {
+
+        private DataOutputStream dos;
+
+        public SendVideo(DataOutputStream dos) {
+            this.dos = dos;
+        }
+
+        @Override
+        public void run() {
+
+            try {
+                // Gửi yêu cầu video call đến server
+                dos.writeUTF("Video call");
+                dos.writeUTF(lbReceiver.getText());
+
+                // Mở webcam
+                wCam = Webcam.getDefault();
+                wCam.setViewSize(WebcamResolution.VGA.getSize());
+                wCam.open();
+
+                // gửi hình ảnh từ webcam lên server
+//                while (true) {
+                BufferedImage frame = wCam.getImage(); // nhận hình ảnh từ webcam
+                int frameWidth = frame.getWidth();
+                int frameHeight = frame.getHeight();
+                // gửi kích thước ảnh lên server
+//                    dos.writeInt(frameWidth);
+//                    dos.writeInt(frameHeight);
+
+                // gửi các pixel ảnh lên server
+                int[] pixelData = new int[frameWidth * frameHeight];
+                frame.getRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
+                for (int i = 0; i < pixelData.length; i++) {
+                    dos.writeInt(pixelData[i]);
+//                        dos.writeUTF(String.valueOf(pixelData[i]));
+                }
+                dos.flush();
+//                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if (wCam != null) {
+                    wCam.close();
+                    System.err.println("Web cam is closed.");
+                }
+            }
+        }
+
+    }
+
+    // Vẽ các pixel ảnh lên JPanel
+    class ImageDisplayPanel extends JPanel {
+
+        private final Object BACKGROUND_LOCK = new Object();
+        private BufferedImage background = null;
+
+        public ImageDisplayPanel() throws HeadlessException {
+            this.setDoubleBuffered(true); // tránh tình trạng nhấp nháy hình ảnh
+        }
+
+        public void setBackground(Image newBackground) {
+            synchronized (BACKGROUND_LOCK) {
+                if (background == null) {
+                    background = new BufferedImage(newBackground.getWidth(null), newBackground.getHeight(null), BufferedImage.TYPE_INT_RGB);
+                } else if (background.getWidth() != newBackground.getWidth(null) || background.getHeight() != newBackground.getHeight(null)) {
+                    background.flush();
+                    background = new BufferedImage(newBackground.getWidth(null), newBackground.getHeight(null), BufferedImage.TYPE_INT_RGB);
+                }
+                Graphics graphics = background.createGraphics();
+                graphics.drawImage(newBackground, 0, 0, null);
+            }
+            repaint();
+        }
+
+        @Override
+        public void paint(Graphics g) {
+            super.paint(g);
+            synchronized (BACKGROUND_LOCK) {
+                if (background != null) {
+                    g.drawImage(background, 0, 0, getWidth(), getHeight(), null);
+                }
+            }
+        }
+    }
+
+    class SendStop implements Runnable {
+
+        private DataOutputStream dos;
+
+        public SendStop(DataOutputStream dos) {
+            this.dos = dos;
+        }
+
+        @Override
+        public void run() {
+            try {
+                dos.writeUTF("Stop");
+                dos.writeUTF(lbReceiver.getText());
+                dos.flush();
+                System.out.println(username + "stop voice.");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
