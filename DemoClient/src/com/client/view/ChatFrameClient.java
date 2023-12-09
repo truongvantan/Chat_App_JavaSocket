@@ -13,6 +13,7 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.HeadlessException;
@@ -34,6 +35,7 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -42,12 +44,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.HashMap;
+import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -59,6 +59,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
@@ -92,7 +93,6 @@ public class ChatFrameClient extends javax.swing.JFrame {
     SourceDataLine inSpeaker;
 
     Webcam wCam;
-    DatagramSocket socketUDP;
 
     public ChatFrameClient(String username, DataInputStream dis, DataOutputStream dos) {
         initComponents();
@@ -132,6 +132,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
         settingPanelBottom();
         settingPanelBody();
+        settingPanelEmoji();
         this.setDefaultLookAndFeelDecorated(true);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
@@ -332,17 +333,15 @@ public class ChatFrameClient extends javax.swing.JFrame {
                         btnVideo.setEnabled(false);
                         btnVoice.setEnabled(false);
                         txtMessage.setEnabled(false);
+                        emojis.setVisible(false);
                     } else {
                         btnSend.setEnabled(true);
                         btnFile.setEnabled(true);
                         btnVideo.setEnabled(true);
                         btnVoice.setEnabled(true);
                         txtMessage.setEnabled(true);
+                        emojis.setVisible(true);
                     }
-
-//                    System.out.println("Map: " + chatLeftWindows);
-//                    System.out.println("chatLeftItem: " + chatLeftItem);
-//                    System.out.println("chatLeftItem map get: " + chatLeftWindows.get(lbReceiver.getText()));
                 }
 
             }
@@ -375,6 +374,103 @@ public class ChatFrameClient extends javax.swing.JFrame {
                 }
             }
         });
+    }
+
+    private void settingPanelEmoji() {
+        emojis.setLayout(new FlowLayout(FlowLayout.LEFT));
+        emojis.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JLabel smileIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/smile.png")));
+        smileIcon.addMouseListener(new IconListener(smileIcon.getIcon().toString().substring(49)));
+        emojis.add(smileIcon);
+
+        JLabel bigSmileIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/big-smile.png")));
+        bigSmileIcon.addMouseListener(new IconListener(bigSmileIcon.getIcon().toString().substring(49)));
+        emojis.add(bigSmileIcon);
+
+        JLabel happyIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/happy.png")));
+        happyIcon.addMouseListener(new IconListener(happyIcon.getIcon().toString().substring(49)));
+        emojis.add(happyIcon);
+
+        JLabel loveIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/love.png")));
+        loveIcon.addMouseListener(new IconListener(loveIcon.getIcon().toString().substring(49)));
+        emojis.add(loveIcon);
+
+        JLabel sadIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/sad.png")));
+        sadIcon.addMouseListener(new IconListener(sadIcon.getIcon().toString().substring(49)));
+        emojis.add(sadIcon);
+
+        JLabel madIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/mad.png")));
+        madIcon.addMouseListener(new IconListener(madIcon.getIcon().toString().substring(49)));
+        emojis.add(madIcon);
+
+        JLabel suspiciousIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/suspicious.png")));
+        suspiciousIcon.addMouseListener(new IconListener(suspiciousIcon.getIcon().toString().substring(49)));
+        emojis.add(suspiciousIcon);
+
+        JLabel angryIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/angry.png")));
+        angryIcon.addMouseListener(new IconListener(angryIcon.getIcon().toString().substring(49)));
+        emojis.add(angryIcon);
+
+        JLabel confusedIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/confused.png")));
+        confusedIcon.addMouseListener(new IconListener(confusedIcon.getIcon().toString().substring(49)));
+        emojis.add(confusedIcon);
+
+        JLabel unhappyIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/unhappy.png")));
+        unhappyIcon.addMouseListener(new IconListener(unhappyIcon.getIcon().toString().substring(49)));
+        emojis.add(unhappyIcon);
+
+        JLabel appleIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/apple.png")));
+        appleIcon.addMouseListener(new IconListener(appleIcon.getIcon().toString().substring(49)));
+        emojis.add(appleIcon);
+
+        JLabel orangeIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/orange.png")));
+        orangeIcon.addMouseListener(new IconListener(orangeIcon.getIcon().toString().substring(49)));
+        emojis.add(orangeIcon);
+
+        JLabel cherryIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/cherry.png")));
+        cherryIcon.addMouseListener(new IconListener(cherryIcon.getIcon().toString().substring(49)));
+        emojis.add(cherryIcon);
+
+        JLabel cakeIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/cake.png")));
+        cakeIcon.addMouseListener(new IconListener(cakeIcon.getIcon().toString().substring(49)));
+        emojis.add(cakeIcon);
+
+        JLabel vietnamIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/vietnam.png")));
+        vietnamIcon.addMouseListener(new IconListener(vietnamIcon.getIcon().toString().substring(49)));
+        emojis.add(vietnamIcon);
+
+        JLabel usIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/us.png")));
+        usIcon.addMouseListener(new IconListener(usIcon.getIcon().toString().substring(49)));
+        emojis.add(usIcon);
+
+        JLabel ukIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/uk.png")));
+        ukIcon.addMouseListener(new IconListener(ukIcon.getIcon().toString().substring(49)));
+        emojis.add(ukIcon);
+
+        JLabel canadaIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/canada.png")));
+        canadaIcon.addMouseListener(new IconListener(canadaIcon.getIcon().toString().substring(49)));
+        emojis.add(canadaIcon);
+
+        JLabel italyIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/italy.png")));
+        italyIcon.addMouseListener(new IconListener(italyIcon.getIcon().toString().substring(49)));
+        emojis.add(italyIcon);
+
+        JLabel spainIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/spain.png")));
+        spainIcon.addMouseListener(new IconListener(spainIcon.getIcon().toString().substring(49)));
+        emojis.add(spainIcon);
+
+        JLabel egyptIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/egypt.png")));
+        egyptIcon.addMouseListener(new IconListener(egyptIcon.getIcon().toString().substring(49)));
+        emojis.add(egyptIcon);
+
+        JLabel swedenIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/sweden.png")));
+        swedenIcon.addMouseListener(new IconListener(swedenIcon.getIcon().toString().substring(49)));
+        emojis.add(swedenIcon);
+
+        JLabel australiaIcon = new JLabel(new ImageIcon(getClass().getResource("/com/client/icon/emoji/australia.png")));
+        australiaIcon.addMouseListener(new IconListener(australiaIcon.getIcon().toString().substring(49)));
+        emojis.add(australiaIcon);
     }
 
     private void refresh() {
@@ -455,7 +551,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
         chatRightItem.setText(text);
         chatRightItem.setFile(fileName, fileSize);
         chatRightItem.setTime();
-        
+
         chatRightItem.addMouseListener(new MouseListener() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -585,9 +681,9 @@ public class ChatFrameClient extends javax.swing.JFrame {
         lbReceiver.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         lbReceiver.setText("Receiver");
 
-        btnVoice.setText("voice");
+        btnVoice.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/client/icon/iconCall.png"))); // NOI18N
 
-        btnVideo.setText("video");
+        btnVideo.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/client/icon/iconVideo.png"))); // NOI18N
 
         javax.swing.GroupLayout panelHeaderLayout = new javax.swing.GroupLayout(panelHeader);
         panelHeader.setLayout(panelHeaderLayout);
@@ -604,7 +700,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
         panelHeaderLayout.setVerticalGroup(
             panelHeaderLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelHeaderLayout.createSequentialGroup()
-                .addContainerGap(11, Short.MAX_VALUE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(panelHeaderLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnVoice)
                     .addComponent(btnVideo)
@@ -629,7 +725,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
         sp.setViewportView(body);
 
-        emojis.setBackground(new java.awt.Color(255, 255, 0));
+        emojis.setBackground(new java.awt.Color(230, 230, 247));
 
         javax.swing.GroupLayout emojisLayout = new javax.swing.GroupLayout(emojis);
         emojis.setLayout(emojisLayout);
@@ -722,8 +818,8 @@ public class ChatFrameClient extends javax.swing.JFrame {
             this.dis = dis;
         }
 
-        public String getFileSizeMB(File file) {
-            double fileSize = (double) file.length() / (1024 * 1024);
+        public String getFileSizeMB(int fileLength) {
+            double fileSize = (double) fileLength / (1024 * 1024);
             DecimalFormat decimalFormat = new DecimalFormat("#.##");
             String formattedFileSize = decimalFormat.format(fileSize);
             return formattedFileSize + "Mb";
@@ -750,7 +846,9 @@ public class ChatFrameClient extends javax.swing.JFrame {
                         String message = dis.readUTF();
                         System.out.println("Server responded: " + sender + "," + message);
                         // In tin nhắn lên màn hình chat
-                        addItemLeft(message, sender);
+                        ImageIcon icon = new ImageIcon(getClass().getResource(message));
+                        addItemLeft("", sender, icon);
+                        System.out.println(icon.getIconWidth() + ", " + icon.getIconHeight());
                     } // Nhận một file
                     else if ("File".equalsIgnoreCase(method)) {
                         String sender = dis.readUTF();
@@ -769,7 +867,7 @@ public class ChatFrameClient extends javax.swing.JFrame {
                         }
 
                         // In ra màn hình file vừa nhận
-                        addItemLeftFile(sender, sender, filename, file.toByteArray(), String.valueOf(file.size()));
+                        addItemLeftFile(sender, sender, filename, file.toByteArray(), String.valueOf(getFileSizeMB(file.toByteArray().length)));
 
                     } // Nhận yêu cầu cập nhật danh sách người dùng trực tuyến
                     else if ("Online users".equalsIgnoreCase(method)) {
@@ -860,18 +958,13 @@ public class ChatFrameClient extends javax.swing.JFrame {
                             });
                             jframe.add(btnStop);
                             jframe.setVisible(true);
-                            byte[] buffer = new byte[1024];
                             while (bytesRead != -1) {
                                 try {
-                                    DatagramPacket response = new DatagramPacket(buffer, buffer.length);
-                                    socketUDP.receive(response);
-                                    inSpeaker.write(response.getData(), 0, response.getLength());
+                                    bytesRead = dis.read(inSound, 0, inSound.length);
+                                    inSpeaker.write(inSound, 0, bytesRead);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-//                                if (bytesRead >= 0) {
-//                                    inSpeaker.write(inSound, 0, bytesRead);
-//                                }
                             }
                         } else {
 //                            sendVoice.interrupt();
@@ -926,35 +1019,16 @@ public class ChatFrameClient extends javax.swing.JFrame {
 
                             jframe.add(btnStop, BorderLayout.SOUTH);
                             jframe.setVisible(true);
+                            int byteRead = 1;
+                            while (byteRead != 0) {
+                                byte[] bytes = dis.readAllBytes();
+                                byteRead = bytes.length;
+                                ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+                                BufferedImage frame = ImageIO.read(bis);
+                              
 
-//                            try {
-//                                int frameWidth = dis.readInt();
-//                                int frameHeight = dis.readInt();
-//                                int[] pixelData = new int[frameWidth * frameHeight];
-//                                for (int i = 0; i < pixelData.length; i++) {
-//                                    pixelData[i] = dis.readInt();
-//                                }
-//                                BufferedImage frame = new BufferedImage(frameWidth, frameHeight, BufferedImage.TYPE_INT_RGB);
-//                                frame.setRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
-//
-//                                imageDisplayPanel.setBackground(frame);
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-//                            while (true) {
-                            int frameWidth = 640;
-                            int frameHeight = 480;
-                            int[] pixelData = new int[frameWidth * frameHeight];
-                            for (int i = 0; i < pixelData.length; i++) {
-                                pixelData[i] = dis.readInt();
-//                                pixelData[i] = Integer.parseInt(dis.readUTF());
-                                System.out.println("pixel " + i + " receive: " + pixelData[i]);
+                                imageDisplayPanel.setBackground(frame);
                             }
-                            BufferedImage frame = new BufferedImage(frameWidth, frameHeight, BufferedImage.TYPE_INT_RGB);
-                            frame.setRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
-
-                            imageDisplayPanel.setBackground(frame);
-//                            }
                         } else {
 //                            sendVideo.interrupt();
                         }
@@ -1061,52 +1135,37 @@ public class ChatFrameClient extends javax.swing.JFrame {
         }
     }
 
-//    class SendVoice implements Runnable {
-//
-//        private DataOutputStream dos;
-//
-//        public SendVoice(DataOutputStream dos) {
-//            this.dos = dos;
-//        }
-//
-//        @Override
-//        public void run() {
-//            try {
-//                // Gửi yêu cầu voice chat đến server
-//                dos.writeUTF("Voice chat");
-//                dos.writeUTF(lbReceiver.getText());
-//
-//                af2 = new AudioFormat(8000.0f, 8, 1, true, false);
-//                info2 = new DataLine.Info(TargetDataLine.class, af2);
-//                microphone = (TargetDataLine) AudioSystem.getLine(info2);
-//                microphone.open(af2);
-//                microphone.start();
-//                int bytesRead = 0;
-//                byte[] soundData = new byte[1];
-//                while (bytesRead != -1) {
-//                    bytesRead = microphone.read(soundData, 0, soundData.length);
-//                    if (bytesRead >= 0) {
-//                        dos.write(soundData, 0, bytesRead);
-//                    }
-//                }
-//                dos.flush();
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    }
+    class IconListener extends MouseAdapter {
+
+        String emoji;
+
+        public IconListener(String emoji) {
+            this.emoji = emoji;
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            try {
+                dos.writeUTF("Emoji");
+                dos.writeUTF(lbReceiver.getText());
+                dos.writeUTF(this.emoji);
+                dos.flush();
+            } catch (IOException e1) {
+                addItemRight("Network error!");
+                e1.printStackTrace();
+            }
+            ImageIcon icon = new ImageIcon(getClass().getResource(this.emoji));
+            // In Emoji lên màn hình chat với người nhận
+            addItemRight("", icon);
+        }
+    }
+
     class SendVoice implements Runnable {
 
         private DataOutputStream dos;
 
         public SendVoice(DataOutputStream dos) {
             this.dos = dos;
-            try {
-                socketUDP = new DatagramSocket();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
         }
 
         @Override
@@ -1116,20 +1175,18 @@ public class ChatFrameClient extends javax.swing.JFrame {
                 dos.writeUTF("Voice chat");
                 dos.writeUTF(lbReceiver.getText());
 
-                af2 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, true);
+                af2 = new AudioFormat(8000.0f, 8, 1, true, false);
                 info2 = new DataLine.Info(TargetDataLine.class, af2);
                 microphone = (TargetDataLine) AudioSystem.getLine(info2);
                 microphone.open(af2);
                 microphone.start();
-
-                InetAddress address = InetAddress.getByName("localhost");
                 int bytesRead = 0;
-                byte[] buffer = new byte[1024];
-                int CHUNK_SIZE = 1024;
+                byte[] soundData = new byte[1];
                 while (bytesRead != -1) {
-                    bytesRead = microphone.read(buffer, 0, CHUNK_SIZE);
-                    DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, 5555);
-                    socketUDP.send(request);
+                    bytesRead = microphone.read(soundData, 0, soundData.length);
+                    if (bytesRead >= 0) {
+                        dos.write(soundData, 0, bytesRead);
+                    }
                 }
                 dos.flush();
             } catch (Exception e) {
@@ -1158,25 +1215,19 @@ public class ChatFrameClient extends javax.swing.JFrame {
                 wCam = Webcam.getDefault();
                 wCam.setViewSize(WebcamResolution.VGA.getSize());
                 wCam.open();
+                int byteReads = 1;
 
                 // gửi hình ảnh từ webcam lên server
-//                while (true) {
-                BufferedImage frame = wCam.getImage(); // nhận hình ảnh từ webcam
-                int frameWidth = frame.getWidth();
-                int frameHeight = frame.getHeight();
-                // gửi kích thước ảnh lên server
-//                    dos.writeInt(frameWidth);
-//                    dos.writeInt(frameHeight);
+                while (byteReads != 0) {
+                    BufferedImage frame = wCam.getImage(); // nhận hình ảnh từ webcam
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write(frame, "jpg", baos);
+                    byte[] bytes = baos.toByteArray();
+                    byteReads = bytes.length;
 
-                // gửi các pixel ảnh lên server
-                int[] pixelData = new int[frameWidth * frameHeight];
-                frame.getRGB(0, 0, frameWidth, frameHeight, pixelData, 0, frameWidth);
-                for (int i = 0; i < pixelData.length; i++) {
-                    dos.writeInt(pixelData[i]);
-//                        dos.writeUTF(String.valueOf(pixelData[i]));
+                    dos.write(bytes, 0, bytes.length);
+                    dos.flush();
                 }
-                dos.flush();
-//                }
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {

@@ -34,7 +34,7 @@ public class Server {
             speakers.start();
 
             // khởi tạo socket
-            DatagramSocket socket = new DatagramSocket(5555);
+            DatagramSocket socket = new DatagramSocket(PORT);
             System.out.println("server is running at PORT: " + socket.getLocalPort());
             byte[] buffer = new byte[1024];
             
@@ -44,7 +44,7 @@ public class Server {
                 socket.receive(response);
                 InetAddress address = response.getAddress();
                 int port = response.getPort();
-//	        	System.out.println("address: " + address + ", port: " + port);
+	        	System.out.println("address: " + address + ", port: " + port);
                 System.out.println("data: " + response.getData() + ", length: " + response.getLength());
                 speakers.write(response.getData(), 0, response.getLength());
 

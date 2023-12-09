@@ -5,9 +5,6 @@ import com.server.model.bean.User;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.Socket;
 
 public class Handler implements Runnable {
@@ -18,7 +15,6 @@ public class Handler implements Runnable {
     private DataOutputStream dos;
     private User user;
     private boolean isLoggedIn;
-    private DatagramSocket socketUDP;
 
     public Handler() {
 
@@ -193,23 +189,19 @@ public class Handler implements Runnable {
                     String receiver = dis.readUTF();
                     System.out.println(message + "," + receiver);
                     int bytesRead = 0;
-                    byte[] buffer = new byte[1024];
+                    byte[] inSound = new byte[1];
 
                     for (Handler client : Server.clients) {
                         if (client.getUser().getUsername().equals(receiver)) {
                             client.getDos().writeUTF("Voice chat");
                             client.getDos().writeUTF(this.user.getUsername());
-                            InetAddress sendTo = client.getSocket().getInetAddress();
-                            int port = 5555;
                             System.out.println(client.getUser().getUsername() + " send voice.");
                             while (bytesRead != -1) {
                                 try {
                                     // nhận buffer voice từ người gửi
-                                    DatagramPacket response = new DatagramPacket(buffer, buffer.length);
-                                    socketUDP.receive(response);
+                                    bytesRead = dis.read(inSound, 0, inSound.length);
                                     // gửi lại buffer vừa đọc cho người nhận
-                                    DatagramPacket request = new DatagramPacket(response.getData(), response.getLength(), sendTo, port);
-                                    socketUDP.send(request);
+                                    client.getDos().write(inSound, 0, bytesRead);
 
                                 } catch (IOException e) {
                                     e.printStackTrace();
@@ -224,7 +216,7 @@ public class Handler implements Runnable {
                     // Đọc các header của tin nhắn gửi video
                     String receiver = dis.readUTF();
                     System.out.println(message + "," + receiver);
-
+                    int bytesRead = 1;
                     // nhận hình ảnh webcam từ client
                     for (Handler client : Server.clients) {
                         if (client.getUser().getUsername().equals(receiver)) {
@@ -233,27 +225,20 @@ public class Handler implements Runnable {
                             client.getDos().writeUTF(this.user.getUsername());
                             System.out.println(client.getUser().getUsername() + " send video.");
 
-//                            while (true) {
-                            try {
-                                int frameWidth = 640;
-                                int frameHeight = 480;
-
-                                int[] pixelData = new int[frameWidth * frameHeight];
-                                for (int i = 0; i < pixelData.length; i++) {
-
-                                    pixelData[i] = dis.readInt();
-//                                    pixelData[i] = Integer.parseInt(dis.readUTF());
-                                    System.out.println(this.user.getUsername() + "send: " + pixelData[i]);
-                                    client.getDos().writeInt(pixelData[i]);
-//                                    client.getDos().writeUTF(String.valueOf(pixelData[i]));
+                            while (bytesRead != 0) {
+                                try {
+                                    
+                                    byte[] bytes = dis.readAllBytes();
+                                    bytesRead = bytes.length;
+                                    
+                                    client.getDos().write(bytes, 0, bytes.length);
+                                    
+                                } catch (Exception e) {
+                                    e.printStackTrace();
                                 }
-                                client.getDos().flush();
-
-                                break;
-                            } catch (Exception e) {
-                                e.printStackTrace();
                             }
-//                            }
+                            client.getDos().flush();
+                            break;
 
                         }
                     }
